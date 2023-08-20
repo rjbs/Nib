@@ -1,11 +1,17 @@
 #!/bin/env perl
 use v5.38.0;
 
+use lib 'lib';
+
 use IO::Socket;
 use Time::HiRes ();
 
+use Nib::Config;
+
+my $config = Nib::Config->read_file('nib.toml');
+
 my $sock = IO::Socket::INET->new(
-  PeerHost  => 'Shapes-B77A.local.',
+  PeerHost  => $config->{host},
   PeerPort  => 60222,
   Proto     => 'udp'
 ) or die "socket fail: $@";
@@ -43,11 +49,11 @@ my @colors = (
 my $color = 0;
 
 while (1) {
-  $color = ($color + 1) % @colors;
-
   for my $i (0 .. $#panel_ids) {
     set_panel($i, $colors[$color]->@*, 0);
-    Time::HiRes::sleep(0.5);
+    Time::HiRes::sleep(0.15);
     set_panel(($i+1) % @panel_ids, 0, 0, 0, 0);
   }
+
+  $color = ($color + 1) % @colors;
 }

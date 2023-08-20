@@ -23,10 +23,64 @@ unless ($state->{effects}{select} eq '*ExtControl*') {
   $dev->set_streaming->get;
 }
 
-my @panel_ids =
-  map  {; $_->{panelId} }
-  grep {; $_->{shapeType} != 12 } # Skip the control panel!
-  $dev->get_panel_position_data->get;
+my @panel_ids;
+
+{
+  # This is probably silly.  I want the spinner to spin around a circle, but
+  # I'm not really sure how to find a circuit through the panels.  So, I'm
+  # going to find the extreme x and y positions for all panels, take their
+  # centerpoint as the origin, convert them to polar coordinates relative to
+  # that, and then sort by theta.  Is this silly?  I think so.  But it will
+  # work, at least while I have my panels arranged as a hexagon made of
+  # triangles! -- rjbs, 2023-08-20
+  my @panels = grep {; $_->{shapeType} != 12 }
+               $dev->get_panel_position_data->get;
+
+  my @xes = sort { $a <=> $b } map {; $_->{x} } @panels;
+  my @yes = sort { $a <=> $b } map {; $_->{y} } @panels;
+
+  my $x_center = ($xes[0] + $xes[-1]) / 2;
+  my $y_center = ($yes[0] + $yes[-1]) / 2;
+
+  say sprintf "x: (%6.2f) @xes", $x_center;
+  say sprintf "y: (%6.2f) @yes", $y_center;
+  # say "fake origin ($x_center, $y_center)";
+
+  require Math::Trig;
+  my %theta_panels;
+  for my $panel ($dev->get_panel_position_data->get) {
+    next if $panel->{shapeType} == 12;
+
+    # θ = atan( y / x )
+    my $theta = Math::Trig::atan(
+      ($panel->{y} - $y_center) / ($panel->{x} - $x_center)
+    );
+
+    $theta = Math::Trig::rad2deg($theta);
+
+    say sprintf "%5s (%3i, %3i) θ = %+4.4f",
+      $panel->{panelId},
+      ($panel->{y} - $y_center),
+      ($panel->{x} - $x_center),
+      $theta;
+
+    $theta_panels{$theta} //= [];
+    push $theta_panels{$theta}->@*, $panel->{panelId};
+  }
+
+  for my $theta (sort { $a <=> $b } keys %theta_panels) {
+    push @panel_ids, $theta_panels{$theta}->@*;
+
+    say sprintf "%+4.4f panel %5i", $theta, $_ for $theta_panels{$theta}->@*;
+  }
+}
+
+exit;
+
+# my @panel_ids =
+#   map  {; $_->{panelId} }
+#   grep {; $_->{shapeType} != 12 } # Skip the control panel!
+#   $dev->get_panel_position_data->get;
 
 die "no panels found?!\n" unless @panel_ids;
 

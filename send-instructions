@@ -1,0 +1,53 @@
+#!/bin/env perl
+use v5.38.0;
+
+use IO::Socket;
+use Time::HiRes ();
+
+my $sock = IO::Socket::INET->new(
+  PeerHost  => 'Shapes-B77A.local.',
+  PeerPort  => 60222,
+  Proto     => 'udp'
+) or die "socket fail: $@";
+
+my @panel_ids = (22456, 9927, 8746, 6265, 19564, 9033);
+
+sub set_panel ($i, $r, $g, $b, $w) {
+  die if $i < 0 || $i > $#panel_ids;
+
+  my $bytes = join q{},
+    (pack "n", 1),                    # will affect one panel
+    (pack "n", $panel_ids[$i]),       # panel id
+    (map {; chr } ($r, $g, $b, $w)),  # R G B W
+    (pack "n", 10),                   # transition time (for later)
+    ;
+
+  $sock->send($bytes);
+
+  say "Set panel $i";
+}
+
+set_panel($_, 0, 0, 0, 0) for keys @panel_ids;
+
+$SIG{INT} = sub {
+  set_panel($_, 0, 0, 0, 0) for keys @panel_ids;
+  die "Interrupted!\n";
+};
+
+my @colors = (
+  [ 0xA0, 0x00, 0x00 ],
+  [ 0x00, 0xA0, 0x00 ],
+  [ 0x00, 0x00, 0xA0 ],
+);
+
+my $color = 0;
+
+while (1) {
+  $color = ($color + 1) % @colors;
+
+  for my $i (0 .. $#panel_ids) {
+    set_panel($i, $colors[$color]->@*, 0);
+    Time::HiRes::sleep(0.5);
+    set_panel(($i+1) % @panel_ids, 0, 0, 0, 0);
+  }
+}

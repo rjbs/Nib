@@ -1,0 +1,22 @@
+#!/bin/env perl
+use v5.38.0;
+
+use IO::Socket;
+
+my $bytes = join q{}, map { chr oct "0b$_" } qw(
+  00000000
+  00000001
+  01010111
+  10111000
+  01000100
+  00100110
+  11000111
+);
+
+my $sock = IO::Socket::INET->new(
+  PeerHost  => '127.0.0.1',
+  PeerPort  => 9991,
+  Proto     => 'udp'
+) or die "socket fail: $@";
+
+$sock->send($bytes);

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+curl -N \
+  http://Shapes-B77A.local.:16021/api/v1/$NANO_AUTH/events?id=1,2,3,4 \
+  --verbose \
+  -H 'TouchEventsPort: 9991' \
+  --ipv4

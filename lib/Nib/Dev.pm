@@ -5,7 +5,7 @@ use v5.38.0;
 use parent 'IO::Async::Notifier';
 
 use Carp ();
-use JSON::XS;
+use JSON::MaybeXS;
 use Net::Async::HTTP;
 
 sub configure ($self, %params) {
@@ -53,6 +53,20 @@ sub set_panel ($self, $panel_id, $r, $g, $b, $w) {
   say "Set panel $panel_id";
 }
 
+sub _do_http_request ($self, $req_param) {
+  my $host = $self->config->host;
+  my $auth = $self->config->auth;
+  my $port = 16021; # should be configurable, but won't matter
+
+  my %req  = %$req_param;
+  my $path = (delete $req{path} // q{}) =~ s{\A/}{}r;
+
+  $self->http->do_request(
+    uri => "http://$host:$port/api/v1/$auth/$path",
+    %req,
+  );
+}
+
 sub set_streaming ($self) {
   state $payload = encode_json({
     write => {
@@ -62,19 +76,32 @@ sub set_streaming ($self) {
     },
   });
 
-  my $host = $self->config->host;
-  my $auth = $self->config->auth;
-  my $port = 16021; # should be configurable, but won't matter
-
-  my $uri = "http://$host:$port/api/v1/$auth/effects";
-
-  $self->http->do_request(
+  $self->_do_http_request({
     method  => 'PUT',
-    uri     => $uri,
+    path    => "/effects",
     content_type => 'application/json',
     content => $payload,
-  )->then(sub ($res) {
+  })->then(sub ($res) {
     return 1 if $res->is_success;
     die "Got failure from API: " . $res->as_string;
+  });
+}
+
+sub get_current_effect ($self) {
+  $self->get_state->then(sub ($config) {
+    return Future->done($config->{effects}{select});
+  });
+}
+
+sub get_state ($self) {
+  $self->_do_http_request({
+    method  => 'GET',
+    path    => "/",
+  })->then(sub ($res) {
+    unless ($res->is_success) {
+      die "Got failure from API: " . $res->as_string;
+    }
+
+    return decode_json($res->decoded_content(charset => undef));
   });
 }

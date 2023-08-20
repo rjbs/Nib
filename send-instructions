@@ -16,9 +16,19 @@ my $dev = Nib::Dev->new(config => $config);
 my $loop = IO::Async::Loop->new;
 $loop->add($dev);
 
-$dev->set_streaming->get;
+my $state = $dev->get_state->get;
 
-my @panel_ids = (22456, 9927, 8746, 6265, 19564, 9033);
+unless ($state->{effects}{select} eq '*ExtControl*') {
+  say "Not currently in streaming mode, configuring...";
+  $dev->set_streaming->get;
+}
+
+my @panel_ids =
+  map  {; $_->{panelId} }
+  grep {; $_->{shapeType} != 12 } # Skip the control panel!
+  $state->{panelLayout}{layout}{positionData}->@*;
+
+die "no panels found?!\n" unless @panel_ids;
 
 $dev->set_panel($_, 0, 0, 0, 0) for @panel_ids;
 

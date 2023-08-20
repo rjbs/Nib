@@ -3,40 +3,27 @@ use v5.38.0;
 
 use lib 'lib';
 
+use IO::Async::Loop;
 use IO::Socket;
 use Time::HiRes ();
 
 use Nib::Config;
+use Nib::Dev;
 
 my $config = Nib::Config->read_file('nib.toml');
 
-my $sock = IO::Socket::INET->new(
-  PeerHost  => $config->{host},
-  PeerPort  => 60222,
-  Proto     => 'udp'
-) or die "socket fail: $@";
+my $dev = Nib::Dev->new(config => $config);
+my $loop = IO::Async::Loop->new;
+$loop->add($dev);
+
+$dev->set_streaming->get;
 
 my @panel_ids = (22456, 9927, 8746, 6265, 19564, 9033);
 
-sub set_panel ($i, $r, $g, $b, $w) {
-  die if $i < 0 || $i > $#panel_ids;
-
-  my $bytes = join q{},
-    (pack "n", 1),                    # will affect one panel
-    (pack "n", $panel_ids[$i]),       # panel id
-    (map {; chr } ($r, $g, $b, $w)),  # R G B W
-    (pack "n", 10),                   # transition time (for later)
-    ;
-
-  $sock->send($bytes);
-
-  say "Set panel $i";
-}
-
-set_panel($_, 0, 0, 0, 0) for keys @panel_ids;
+$dev->set_panel($_, 0, 0, 0, 0) for @panel_ids;
 
 $SIG{INT} = sub {
-  set_panel($_, 0, 0, 0, 0) for keys @panel_ids;
+  $dev->set_panel($_, 0, 0, 0, 0) for @panel_ids;
   die "Interrupted!\n";
 };
 
@@ -50,9 +37,9 @@ my $color = 0;
 
 while (1) {
   for my $i (0 .. $#panel_ids) {
-    set_panel($i, $colors[$color]->@*, 0);
+    $dev->set_panel($panel_ids[$i], $colors[$color]->@*, 0);
     Time::HiRes::sleep(0.15);
-    set_panel(($i+1) % @panel_ids, 0, 0, 0, 0);
+    $dev->set_panel($panel_ids[($i+1) % @panel_ids], 0, 0, 0, 0);
   }
 
   $color = ($color + 1) % @colors;

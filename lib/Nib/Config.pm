@@ -13,5 +13,3 @@ sub read_file ($class, $filename) {
 
 sub auth ($self) { $self->{auth} }
 sub host ($self) { $self->{host} }
-
-1;

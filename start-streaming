@@ -1,7 +1,0 @@
-#!/bin/bash
-
-curl -X PUT \
-  --verbose \
-  --json '{"write":{"command":"display", "animType":"extControl","extControlVersion":"v2"}}' \
-  http://Shapes-B77A.local.:16021/api/v1/$NANO_AUTH/effects
-

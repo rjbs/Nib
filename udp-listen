@@ -27,20 +27,22 @@ $loop->add($dev);
 my $host = $config->host;
 my $auth = $config->auth;
 
-my $child = $loop->spawn_child(
-  command => [
-    'curl', '--no-buffer',
-    "http://$host:16021/api/v1/$auth/events?id=1,2,3,4",
-    '-H', 'TouchEventsPort: ' . $opt->port,
-    '--ipv4',
-    '--verbose',
-  ],
-);
+my @children;
+
+for (1,2) {
+  push @children, $loop->spawn_child(
+    command => [
+      'curl', '--no-buffer',
+      "http://$host:16021/api/v1/$auth/events?id=1,2,3,4",
+      '-H', 'TouchEventsPort: ' . $opt->port,
+      '--ipv4',
+    ],
+  );
+}
 
 my $sock = IO::Async::Socket->new(
   on_recv => sub ($self, $dgram, $addr) {
     state $counter = 1;
-    warn "<<";
     Nib::TouchUtil->dump_dgram($dgram, $counter++);
   },
 );

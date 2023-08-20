@@ -51,8 +51,6 @@ sub set_panel ($self, $panel_id, $rgb) {
     ;
 
   $self->_streaming_socket->send($bytes);
-
-  say "Set panel $panel_id";
 }
 
 sub _do_http_request ($self, $req_param) {

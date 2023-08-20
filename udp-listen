@@ -5,7 +5,7 @@ use utf8;
 binmode *STDOUT, ':encoding(UTF-8)';
 
 use Getopt::Long::Descriptive;
-use IO::Socket;
+use IO::Async::Socket;
 
 use lib 'lib';
 use Nib::TouchUtil;
@@ -15,16 +15,55 @@ my ($opt, $usage) = describe_options(
   [ 'port|p=i', 'port to listen on', { default => '9991' } ],
 );
 
-my $sock = IO::Socket::INET->new(
-  LocalPort => $opt->port,
-  Proto     => 'udp'
-) or die "socket fail: $@";
+use Nib::Config;
+use Nib::Dev;
 
-say "Now listening on 0.0.0.0:" . $opt->port;
+my $config = Nib::Config->read_file('nib.toml');
 
-my $counter = 1;
+my $dev = Nib::Dev->new(config => $config);
+my $loop = IO::Async::Loop->new;
+$loop->add($dev);
 
-while ($sock->recv(my $newmsg, 1024)) {
-  Nib::TouchUtil->dump_dgram($newmsg, $counter++);
-}
+my $req = $dev->_do_http_request({
+  family  => 'inet',
+  path    => '/events?id=1,2,3,4', # 4 is touch
+  headers => [
+    Accept => '*/*',
+    TouchEventsPort => $opt->port,
+  ],
+  on_error  => sub {
+    die "ERROR: @_";
+  },
+  on_header => sub {
+    my ($header) = @_;
 
+    warn "REQUEST: " . $header->request->as_string . "\n";
+    warn "HEADER: " . $header->as_string . "\n";
+
+    # We return a chunk handler.
+    return sub ($chunk) {
+      warn "---BEGIN CHUNK---\n$chunk\n---END CHUNK---\n";
+      return;
+    };
+  },
+});
+
+my $sock = IO::Async::Socket->new(
+  on_recv => sub ($self, $dgram, $addr) {
+    state $counter = 1;
+    warn "<<";
+    Nib::TouchUtil->dump_dgram($dgram, $counter++);
+  },
+);
+
+$loop->add($sock);
+
+$sock->bind(
+  family   => 'inet',
+  service  => $opt->port,
+  socktype => 'dgram',
+)->get;
+
+say "Now listening on port " . $opt->port;
+
+$loop->run;

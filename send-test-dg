@@ -1,7 +1,7 @@
 #!/bin/env perl
 use v5.38.0;
 
-use IO::Socket;
+use IO::Socket::IP;
 
 my $bytes = join q{}, map { chr oct "0b$_" } qw(
   00000000
@@ -13,8 +13,8 @@ my $bytes = join q{}, map { chr oct "0b$_" } qw(
   11000111
 );
 
-my $sock = IO::Socket::INET->new(
-  PeerHost  => '127.0.0.1',
+my $sock = IO::Socket::IP->new(
+  PeerHost  => '192.168.1.169',
   PeerPort  => 9991,
   Proto     => 'udp'
 ) or die "socket fail: $@";

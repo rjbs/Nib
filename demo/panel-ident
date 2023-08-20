@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+use v5.38.0;
+use utf8;
+
+use lib 'lib';
+
+use IO::Async::Loop;
+use IO::Socket;
+use Time::HiRes ();
+
+use Nib::Config;
+use Nib::Dev;
+
+binmode *STDOUT, ':encoding(UTF-8)';
+
+my $config = Nib::Config->read_file('nib.toml');
+
+my $dev = Nib::Dev->new(config => $config);
+my $loop = IO::Async::Loop->new;
+$loop->add($dev);
+
+my $state = $dev->get_state->get;
+
+unless ($state->{effects}{select} eq '*ExtControl*') {
+  say "Not currently in streaming mode, configuring...";
+  $dev->set_streaming->get;
+}
+
+my @panels =
+  sort { $a->{panelId} <=> $b->{panelId} }
+  grep {; $_->{shapeType} != 12 } # Skip the control panel!
+  $dev->get_panel_position_data->get;
+
+die "no panels found?!\n" unless @panels;
+
+my %colors = (
+  red     => [ 0xA0, 0x00, 0x00 ],
+  blue    => [ 0x00, 0x00, 0xA0 ],
+  cyan    => [ 0x00, 0xA0, 0xA0 ],
+  green   => [ 0x00, 0xA0, 0x00 ],
+  yellow  => [ 0xA0, 0xA0, 0x00 ],
+  purple  => [ 0xA0, 0x00, 0xA0 ],
+  white   => [ 0xA0, 0xA0, 0xA0 ],
+);
+
+die "too many panels!\n" if @panels > %colors;
+
+$dev->blackout->get;
+
+for my $color (sort keys %colors) {
+  my $panel = shift @panels;
+  last unless $panel;
+
+  $dev->set_panel($panel->{panelId}, $colors{$color});
+
+  say sprintf "%6i %8s (%3i, %3i) %3i°",
+    $panel->{panelId},
+    $color,
+    $panel->@{qw( x y o )};
+}

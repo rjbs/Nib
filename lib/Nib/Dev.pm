@@ -114,6 +114,31 @@ sub get_state ($self) {
   }
 }
 
+sub get_panel_position_data ($self) {
+  $self->get_state->then(sub ($state) {
+    my @panels = $state->{panelLayout}{layout}{positionData}->@*;
+
+    return Future->done(@panels);
+  });
+}
+
+sub blackout ($self) {
+  $self->set_all_panels([0,0,0]);
+}
+
+sub set_all_panels ($self, $rgb) {
+  $self->get_panel_position_data->then(sub (@panels) {
+    my @panel_ids =
+      map  {; $_->{panelId} }
+      grep {; $_->{shapeType} != 12 } # Skip the control panel!
+      @panels;
+
+    $self->set_panel($_, $rgb) for @panel_ids;
+
+    Future->done;
+  });
+}
+
 sub _clear_state ($self) {
   delete $self->{_nib_state};
 }

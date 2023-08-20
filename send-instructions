@@ -26,14 +26,14 @@ unless ($state->{effects}{select} eq '*ExtControl*') {
 my @panel_ids =
   map  {; $_->{panelId} }
   grep {; $_->{shapeType} != 12 } # Skip the control panel!
-  $state->{panelLayout}{layout}{positionData}->@*;
+  $dev->get_panel_position_data->get;
 
 die "no panels found?!\n" unless @panel_ids;
 
-$dev->set_panel($_, [0,0,0]) for @panel_ids;
+$dev->blackout;
 
 $SIG{INT} = sub {
-  $dev->set_panel($_, [0,0,0]) for @panel_ids;
+  $dev->blackout;
   die "Interrupted!\n";
 };
 

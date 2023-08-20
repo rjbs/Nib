@@ -82,8 +82,12 @@ sub set_streaming ($self) {
     content_type => 'application/json',
     content => $payload,
   })->then(sub ($res) {
-    return 1 if $res->is_success;
-    die "Got failure from API: " . $res->as_string;
+    unless ($res->is_success) {
+      die "Got failure from API: " . $res->as_string;
+    }
+
+    $self->_clear_state;
+    return Future->done if $res->is_success;
   });
 }
 
@@ -94,14 +98,22 @@ sub get_current_effect ($self) {
 }
 
 sub get_state ($self) {
-  $self->_do_http_request({
-    method  => 'GET',
-    path    => "/",
-  })->then(sub ($res) {
-    unless ($res->is_success) {
-      die "Got failure from API: " . $res->as_string;
-    }
+  $self->{_nib_state} //= do {
+    $self->_do_http_request({
+      method  => 'GET',
+      path    => "/",
+    })->then(sub ($res) {
+      unless ($res->is_success) {
+        die "Got failure from API: " . $res->as_string;
+      }
 
-    return decode_json($res->decoded_content(charset => undef));
-  });
+      return Future->done(
+        decode_json($res->decoded_content(charset => undef))
+      );
+    });
+  }
+}
+
+sub _clear_state ($self) {
+  delete $self->{_nib_state};
 }

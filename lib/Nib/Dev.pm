@@ -40,12 +40,12 @@ sub _streaming_socket ($self) {
   };
 }
 
-sub set_panel ($self, $panel_id, $r, $g, $b, $w) {
+sub set_panel ($self, $panel_id, $rgb) {
   my $bytes = join q{},
-    (pack "n", 1),                    # will affect one panel
-    (pack "n", $panel_id),            # panel id
-    (map {; chr } ($r, $g, $b, $w)),  # R G B W
-    (pack "n", 10),                   # transition time (for later)
+    (pack "n", 1),              # will affect one panel
+    (pack "n", $panel_id),      # panel id
+    (map {; chr } (@$rgb, 0)),  # RGBW, W is always 0
+    (pack "n", 10),             # transition time (for later)
     ;
 
   $self->_streaming_socket->send($bytes);

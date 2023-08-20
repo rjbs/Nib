@@ -30,10 +30,10 @@ my @panel_ids =
 
 die "no panels found?!\n" unless @panel_ids;
 
-$dev->set_panel($_, 0, 0, 0, 0) for @panel_ids;
+$dev->set_panel($_, [0,0,0]) for @panel_ids;
 
 $SIG{INT} = sub {
-  $dev->set_panel($_, 0, 0, 0, 0) for @panel_ids;
+  $dev->set_panel($_, [0,0,0]) for @panel_ids;
   die "Interrupted!\n";
 };
 
@@ -47,9 +47,9 @@ my $color = 0;
 
 while (1) {
   for my $i (0 .. $#panel_ids) {
-    $dev->set_panel($panel_ids[$i], $colors[$color]->@*, 0);
+    $dev->set_panel($panel_ids[$i], $colors[$color]);
     Time::HiRes::sleep(0.15);
-    $dev->set_panel($panel_ids[($i+1) % @panel_ids], 0, 0, 0, 0);
+    $dev->set_panel($panel_ids[($i+1) % @panel_ids], [0,0,0]);
   }
 
   $color = ($color + 1) % @colors;

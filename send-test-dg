@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 use v5.38.0;
 
 use IO::Socket::IP;

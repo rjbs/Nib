@@ -23,17 +23,57 @@ unless ($state->{effects}{select} eq '*ExtControl*') {
   $dev->set_streaming->get;
 }
 
-my @panel_ids =
-  map  {; $_->{panelId} }
+my @panels =
   grep {; $_->{shapeType} != 12 } # Skip the control panel!
   $dev->get_panel_position_data->get;
 
-die "no panels found?!\n" unless @panel_ids;
+die "no panels found?!\n" unless @panels;
 
-$dev->blackout;
+my @panel_ids;
+
+{
+  # We want the panels to chase, so we need them in order.  My first attempt to
+  # do this was to use trig to find them radially around a centerpoint using
+  # trig.  I failed.
+  #
+  # My new tactic is to pick one arbitrarily (lowest panel id, why not?), then
+  # find all the ones nearest it.  Pick one of *those* arbitrarily, never
+  # returning to one already visited, and repeat.  This should be pretty good,
+  # although if I wanted this to work on a long linear shape, I'd want to try
+  # to pick one of the extreme positions to start.
+  my %unseen = map {; $_->{panelId} => $_ } @panels;
+
+  my ($first) = sort {; $a <=> $b } keys %unseen;
+
+  my $current = delete $unseen{ $first };
+  push @panel_ids, $current->{panelId};
+
+  my sub dist ($p1, $p2) {
+    sqrt( ($p1->{x} - $p2->{x})**2 + ($p1->{y} - $p2->{y})**2 );
+  }
+
+  while (%unseen) {
+    my %by_distance;
+    for my $panel (values %unseen) {
+      my $dist = dist($current, $panel);
+
+      $by_distance{$dist} //= [];
+      push $by_distance{ $dist }->@*, $panel;
+    }
+
+    my ($smallest_key) = sort {; $a <=> $b } keys %by_distance;
+    my ($pick) = sort {; $a->{panelId} <=> $b->{panelId} }
+                 $by_distance{ $smallest_key }->@*;
+
+    $current = delete $unseen{ $pick->{panelId} };
+    push @panel_ids, $current->{panelId};
+  }
+}
+
+$dev->blackout->get;
 
 $SIG{INT} = sub {
-  $dev->blackout;
+  $dev->blackout->get;
   die "Interrupted!\n";
 };
 

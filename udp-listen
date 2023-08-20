@@ -24,29 +24,18 @@ my $dev = Nib::Dev->new(config => $config);
 my $loop = IO::Async::Loop->new;
 $loop->add($dev);
 
-my $req = $dev->_do_http_request({
-  family  => 'inet',
-  path    => '/events?id=1,2,3,4', # 4 is touch
-  headers => [
-    Accept => '*/*',
-    TouchEventsPort => $opt->port,
+my $host = $config->host;
+my $auth = $config->auth;
+
+my $child = $loop->spawn_child(
+  command => [
+    'curl', '--no-buffer',
+    "http://$host:16021/api/v1/$auth/events?id=1,2,3,4",
+    '-H', 'TouchEventsPort: ' . $opt->port,
+    '--ipv4',
+    '--verbose',
   ],
-  on_error  => sub {
-    die "ERROR: @_";
-  },
-  on_header => sub {
-    my ($header) = @_;
-
-    warn "REQUEST: " . $header->request->as_string . "\n";
-    warn "HEADER: " . $header->as_string . "\n";
-
-    # We return a chunk handler.
-    return sub ($chunk) {
-      warn "---BEGIN CHUNK---\n$chunk\n---END CHUNK---\n";
-      return;
-    };
-  },
-});
+);
 
 my $sock = IO::Async::Socket->new(
   on_recv => sub ($self, $dgram, $addr) {

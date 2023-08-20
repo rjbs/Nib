@@ -22,7 +22,9 @@ sub config ($self) {
 
 sub http ($self) {
   return $self->{_nib_http} //= do {
-    my $http = Net::Async::HTTP->new;
+    my $http = Net::Async::HTTP->new(
+      user_agent => 'Nib/0',
+    );
     $self->loop->add($http);
 
     $http;

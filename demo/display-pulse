@@ -1,0 +1,44 @@
+#!/usr/bin/env perl
+use v5.38.0;
+
+use lib 'lib';
+
+use IO::Async::Loop;
+use IO::Socket;
+use JSON::MaybeXS;
+use Time::HiRes ();
+
+use Nib::Config;
+use Nib::Dev;
+
+my $config = Nib::Config->read_file('nib.toml');
+
+my $dev = Nib::Dev->new(config => $config);
+my $loop = IO::Async::Loop->new;
+$loop->add($dev);
+
+my @panels =
+  grep {; $_->{shapeType} != 12 } # Skip the control panel!
+  $dev->get_panel_position_data->get;
+
+die "no panels found?!\n" unless @panels;
+
+my sub rand_rgb {
+  return [ map { int rand 256 } (0..2) ];
+}
+
+my sub random_frames {
+  my $n = 1 + int rand 8;
+
+  return [
+    (map {; { rgb => rand_rgb(),   time => 10 }, } (0..$n)),
+            { rgb => [ 0, 0, 0 ],  time => 10 },
+  ]
+}
+
+$dev->send_custom_animation({
+  loop   => 0,
+  panels => {
+    map {; $_->{panelId} => random_frames() } @panels,
+  },
+})->get;

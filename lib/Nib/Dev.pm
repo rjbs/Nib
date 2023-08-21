@@ -122,6 +122,45 @@ sub get_panel_position_data ($self) {
   });
 }
 
+sub send_custom_animation ($self, $anim) {
+  # This should *REALLY* do some sanity checking. -- rjbs, 2023-08-20
+  my $command = 0 + $anim->{panels}->%*;
+
+  for my $panel_id (keys $anim->{panels}->%*) {
+    my @instr = $anim->{panels}{$panel_id}->@*;
+
+    $command .= " $panel_id " . @instr;
+
+    for my $instr (@instr) {
+      my @rgb = $instr->{rgb}->@*;
+      $command .= " @rgb 0 $instr->{time}";
+    }
+  }
+
+  $self->_do_http_request({
+    method  => 'PUT',
+    path    => "/effects",
+    content_type => 'application/json',
+    content => encode_json({
+      write => {
+        animType  => 'custom', # ?
+        animData  => $command,
+        command   => 'display',
+        loop      => $anim->{loop} ? \1 : \0,
+        palette   => [],
+      },
+    })
+  })->then(sub ($res) {
+    unless ($res->is_success) {
+      warn $res->request->as_string;
+      die "Got failure from API: " . $res->as_string;
+    }
+
+    $self->_clear_state;
+    return Future->done if $res->is_success;
+  });
+}
+
 sub blackout ($self) {
   $self->set_all_panels([0,0,0]);
 }

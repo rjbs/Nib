@@ -81,6 +81,7 @@ my @colors = (
   [ 0xA0, 0x00, 0x00 ],
   [ 0x00, 0xA0, 0x00 ],
   [ 0x00, 0x00, 0xA0 ],
+  [ 0xA0, 0xA0, 0xA0 ],
 );
 
 my $color = 0;
@@ -88,7 +89,7 @@ my $color = 0;
 while (1) {
   for my $i (0 .. $#panel_ids) {
     $dev->set_panel($panel_ids[$i], $colors[$color]);
-    Time::HiRes::sleep(0.15);
+    Time::HiRes::sleep(0.20);
     $dev->set_panel($panel_ids[($i+1) % @panel_ids], [0,0,0]);
   }
 

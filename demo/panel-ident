@@ -28,7 +28,6 @@ unless ($state->{effects}{select} eq '*ExtControl*') {
 
 my @panels =
   sort { $a->{panelId} <=> $b->{panelId} }
-  grep {; $_->{shapeType} != 12 } # Skip the control panel!
   $dev->get_panel_position_data->get;
 
 die "no panels found?!\n" unless @panels;
@@ -47,9 +46,28 @@ die "too many panels!\n" if @panels > %colors;
 
 $dev->blackout->get;
 
-for my $color (sort keys %colors) {
-  my $panel = shift @panels;
-  last unless $panel;
+my @color_queue = sort keys %colors;
+
+for my $panel (@panels) {
+  if ($panel->{shapeType} == 12) {
+    say sprintf "%6i %8s (%3i, %3i) %3i°",
+      $panel->{panelId},
+      'controls',
+      $panel->@{qw( x y o )};
+
+    next;
+  }
+
+  my $color = shift @color_queue;
+
+  unless ($color) {
+    say sprintf "%6i %8s (%3i, %3i) %3i°",
+      $panel->{panelId},
+      '(n/a)',
+      $panel->@{qw( x y o )};
+
+    next;
+  }
 
   $dev->set_panel($panel->{panelId}, $colors{$color});
 

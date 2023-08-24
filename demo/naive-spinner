@@ -3,12 +3,18 @@ use v5.38.0;
 
 use lib 'lib';
 
+use Getopt::Long::Descriptive;
 use IO::Async::Loop;
 use IO::Socket;
 use Time::HiRes ();
 
 use Nib::Config;
 use Nib::Dev;
+
+my ($opt, $usage) = describe_options(
+  '%c %o',
+  [ 'skip-panel|x=i@', 'do not spin on this panel id' ],
+);
 
 my $config = Nib::Config->read_file('nib.toml');
 
@@ -23,7 +29,13 @@ unless ($state->{effects}{select} eq '*ExtControl*') {
   $dev->set_streaming->get;
 }
 
+my %skip;
+if ($opt->skip_panel) {
+  %skip = map {; $_ => 1 } $opt->skip_panel->@*;
+}
+
 my @panels =
+  grep {; ! $skip{ $_->{panelId} } }
   grep {; $_->{shapeType} != 12 } # Skip the control panel!
   $dev->get_panel_position_data->get;
 
